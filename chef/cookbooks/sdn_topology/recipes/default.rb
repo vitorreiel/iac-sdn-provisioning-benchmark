@@ -1,7 +1,8 @@
 topology_dir = node['sdn_topology']['topology_dir']
 docker_user  = node['sdn_topology']['docker_user']
+topology_type = node['sdn_topology']['topology_type'] || 'fat-tree'
 
-onos_src = ::File.expand_path('../../../../sdn-topology/fat-tree/onos', __dir__)
+onos_src = "/tmp/sdn-topology/#{topology_type}/onos"
 
 # ------------------------------------------------------------------
 # Install OVS kernel module
@@ -42,11 +43,10 @@ execute 'add_docker_repo' do
     tee /etc/apt/sources.list.d/docker.list
   CMD
   not_if { ::File.exist?('/etc/apt/sources.list.d/docker.list') }
-  notifies :run, 'apt_update[update_after_docker_repo]', :immediately
 end
 
 apt_update 'update_after_docker_repo' do
-  action :nothing
+  action :update
 end
 
 %w[docker-ce docker-ce-cli containerd.io docker-compose-plugin].each do |pkg|
@@ -55,6 +55,10 @@ end
 
 service 'docker' do
   action [:enable, :start]
+end
+
+execute 'record_install_done' do
+  command 'date +%s%N > /tmp/t_install_done'
 end
 
 group 'docker' do
@@ -85,8 +89,7 @@ end
 # Run docker compose
 # ------------------------------------------------------------------
 execute 'docker_compose_up' do
-  command     'docker compose up -d'
+  command     "sudo -u #{docker_user} sg docker -c 'docker compose up -d'"
   cwd         "#{topology_dir}/onos"
-  user        docker_user
   environment({ 'HOME' => "/home/#{docker_user}" })
 end

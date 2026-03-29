@@ -1,12 +1,13 @@
 import os
-import pulumi
 from pulumi_command import remote
+import pulumi
 
 config = pulumi.Config()
 ec2_public_ip = config.require("ec2PublicIp")
 ssh_key_path  = config.get("sshKeyPath") or "../ssh/chaves-aws.pem"
 
-_onos_dir = os.path.join(os.path.dirname(__file__), "../sdn-topology/fat-tree/onos")
+_topology_dir = os.getenv("TOPOLOGY_DIR", "fat-tree")
+_onos_dir = os.path.join(os.path.dirname(__file__), f"../sdn-topology/{_topology_dir}/onos")
 
 with open(os.path.join(os.path.dirname(__file__), ssh_key_path)) as f:
     private_key = f.read()
@@ -20,24 +21,24 @@ connection = remote.ConnectionArgs(
 # ------------------------------------------------------------------
 # Upload topology files
 # ------------------------------------------------------------------
-copy_compose = remote.CopyToRemote(
+copy_compose = remote.CopyFile(
     "copy-docker-compose",
-    connection = connection,
-    source     = pulumi.FileAsset(os.path.join(_onos_dir, "docker-compose.yml")),
+    connection  = connection,
+    local_path  = os.path.join(_onos_dir, "docker-compose.yml"),
     remote_path = "/tmp/docker-compose.yml",
 )
 
-copy_start = remote.CopyToRemote(
+copy_start = remote.CopyFile(
     "copy-start-sh",
     connection  = connection,
-    source      = pulumi.FileAsset(os.path.join(_onos_dir, "start.sh")),
+    local_path  = os.path.join(_onos_dir, "start.sh"),
     remote_path = "/tmp/start.sh",
 )
 
-copy_topology = remote.CopyToRemote(
+copy_topology = remote.CopyFile(
     "copy-topology-py",
     connection  = connection,
-    source      = pulumi.FileAsset(os.path.join(_onos_dir, "topology.py")),
+    local_path  = os.path.join(_onos_dir, "topology.py"),
     remote_path = "/tmp/topology.py",
 )
 
@@ -62,6 +63,7 @@ sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plu
 sudo systemctl enable docker
 sudo systemctl start docker
 sudo usermod -aG docker ubuntu
+date +%s%N > /tmp/t_install_done
 mkdir -p /home/ubuntu/sdn-topology/onos
 mv /tmp/docker-compose.yml /home/ubuntu/sdn-topology/onos/
 mv /tmp/start.sh           /home/ubuntu/sdn-topology/onos/

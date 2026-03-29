@@ -2,11 +2,12 @@
 # Installs Docker and deploys the SDN topology via docker compose.
 class sdn_topology (
   String $topology_dir = '/home/ubuntu/sdn-topology',
+  String $topology_type = 'fat-tree',
   String $docker_user  = 'ubuntu',
 ) {
 
-  # Path to ONOS files inside sdn-topology/ (3 levels up from this module)
-  $onos_src = "${module_directory('sdn_topology')}/../../../sdn-topology/fat-tree/onos"
+  # Path to ONOS files copied by deploy.sh
+  $onos_src = "/tmp/sdn-topology/${topology_type}/onos"
 
   # ------------------------------------------------------------------
   # Install OVS kernel module
@@ -66,12 +67,20 @@ class sdn_topology (
   # ------------------------------------------------------------------
   # Deploy topology files directly from sdn-topology/
   # ------------------------------------------------------------------
-  file { "${topology_dir}/onos":
+  file { $topology_dir:
     ensure  => directory,
     owner   => $docker_user,
     group   => $docker_user,
     mode    => '0755',
     require => Service['docker'],
+  }
+
+  file { "${topology_dir}/onos":
+    ensure  => directory,
+    owner   => $docker_user,
+    group   => $docker_user,
+    mode    => '0755',
+    require => File[$topology_dir],
   }
 
   file { "${topology_dir}/onos/docker-compose.yml":
@@ -96,6 +105,11 @@ class sdn_topology (
     group   => $docker_user,
     mode    => '0755',
     require => File["${topology_dir}/onos"],
+  }
+
+  exec { 'record_install_done':
+    command => '/bin/bash -c "date +%s%N > /tmp/t_install_done"',
+    require => Service['docker'],
   }
 
   # ------------------------------------------------------------------

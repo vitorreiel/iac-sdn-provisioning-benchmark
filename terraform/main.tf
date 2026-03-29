@@ -8,7 +8,7 @@ terraform {
 }
 
 locals {
-  onos_dir = "${path.module}/../sdn-topology/fat-tree/onos"
+  onos_dir = "${path.module}/../sdn-topology/${var.topology_dir}/onos"
 }
 
 resource "null_resource" "deploy_topology" {
@@ -59,6 +59,7 @@ resource "null_resource" "deploy_topology" {
       "sudo systemctl enable docker",
       "sudo systemctl start docker",
       "sudo usermod -aG docker ubuntu",
+      "date +%s%N > /tmp/t_install_done",
       "mkdir -p /home/ubuntu/sdn-topology/onos",
       "mv /tmp/docker-compose.yml /home/ubuntu/sdn-topology/onos/",
       "mv /tmp/start.sh           /home/ubuntu/sdn-topology/onos/",
